@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 // material-ui
@@ -47,11 +47,21 @@ const verifyToken = () => {
 };
 
 const AuthLogin = ({ isDemo = false }) => {
+
+  const navigate = useNavigate();
+  
+    // Check for the token and redirect to login if not present
+    useEffect(() => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        navigate("/dashboard");
+      }
+    }, [navigate]);
   const [checked, setChecked] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [apiError, setApiError] = useState("");
-  const navigate = useNavigate();
-
+  // const navigate = useNavigate();
+ 
   const handleClickShowPassword = () => {
     setShowPassword(!showPassword);
   };
@@ -214,14 +224,14 @@ const AuthLogin = ({ isDemo = false }) => {
                   </Button>
                 </AnimateButton>
               </Grid>
-              <Grid item xs={12}>
+              {/* <Grid item xs={12}>
                 <Divider>
                   <Typography variant="caption">Login with</Typography>
                 </Divider>
-              </Grid>
-              <Grid item xs={12}>
+              </Grid> */}
+              {/* <Grid item xs={12}>
                 <FirebaseSocial />
-              </Grid>
+              </Grid> */}
             </Grid>
           </form>
         )}

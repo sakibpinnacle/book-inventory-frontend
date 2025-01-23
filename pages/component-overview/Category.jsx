@@ -318,7 +318,7 @@ const Category1 = () => {
 
   return (
     <Card sx={{ borderRadius: 2, boxShadow: 3 }}>
-      <CardContent>
+      <CardContent sx={{ height: 830, mt: 2, overflowX: 'auto' }}>
       <Box display="flex" justifyContent="space-between" alignItems="center">
         <Typography variant="h5" component="div" gutterBottom>
           Category Records
@@ -347,7 +347,7 @@ const Category1 = () => {
           Add Category
         </Button>
         </Box>
-        <Box sx={{ height: 400, mt: 2, overflowX: 'auto' }}>
+        <Box sx={{ height: 750, mt: 2, overflowX: 'auto' }}>
       <div style={{ minWidth: '1000px' }}> 
           {/* <DataGrid
             rows={rows}

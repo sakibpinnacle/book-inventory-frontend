@@ -329,7 +329,7 @@ const Author = () => {
   return (
     <>
       <Card sx={{ borderRadius: 2, boxShadow: 3 }}>
-        <CardContent>
+        <CardContent sx={{ height: 830, mt: 2, overflowX: 'auto' }}>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h5" component="div" gutterBottom>
               Author Records
@@ -353,7 +353,7 @@ const Author = () => {
               Add Author
             </Button>
           </Box>
-          <Box sx={{ height: 400, mt: 2, overflowX: 'auto' }}>
+          <Box sx={{ height: 750, mt: 2, overflowX: 'auto' }}>
       <div style={{ minWidth: '1000px' }}> 
             {loading ? (
               <Typography variant="h6" color="textSecondary">

@@ -14,13 +14,9 @@ import MenuItem from '@mui/material/MenuItem';
 import InputLabel from '@mui/material/InputLabel';
 import { useNavigate } from 'react-router';
 import FormControl from '@mui/material/FormControl';
-
-
-/* first */
-/* second */
-/* third */
-/* Fourth */
-
+import IconButton from '@mui/material/IconButton';
+import AddCircleIcon from '@mui/icons-material/AddCircle'; // Add this import for the icon
+import Tooltip from '@mui/material/Tooltip';
 
 const modalStyle = {
   position: 'absolute',
@@ -28,57 +24,48 @@ const modalStyle = {
   left: '50%',
   transform: 'translate(-50%, -50%)',
   width: 400,
-  bgcolor: 'background.paper',
-  // border: '2px solid #000',
-  boxShadow: 24,
-  p: 4,
+  backgroundColor: 'white',
+  padding: 4,
   borderRadius: 2,
+  boxShadow: 24,
 };
 
 const Book = () => {
-
-
-
-
   const navigate = useNavigate();
 
   useEffect(() => {
-     const token = localStorage.getItem("token");
-     if (!token) {
-       navigate("/login");
-     }
-   }, [navigate]);
- 
-
-
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+    }
+  }, [navigate]);
 
   const [bookRows, setBookRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openDescModal, setOpenDescModal] = useState(false);
   const [openUpdateModal, setOpenUpdateModal] = useState(false);
-  const [openAddModal, setOpenAddModal] = useState(false); // New state for Add Book modal
+  const [openAddModal, setOpenAddModal] = useState(false);
+  const [openAddCategoryModal, setOpenAddCategoryModal] = useState(false); // New state for category modal
+  const [openAddAuthorModal, setOpenAddAuthorModal] = useState(false);
   const [selectedBook, setSelectedBook] = useState({});
   const [selectedDescription, setSelectedDescription] = useState('');
-
-const [searchTerm, setSearchTerm] = useState('');
-const [categories, setCategories] = useState([]); // State for categories
-const [authors, setAuthors] = useState([]); // State for autho
-
-// Filter the books based on the search term
-const filteredBooks = bookRows.filter((book) => {
-  const lowercasedSearchTerm = searchTerm.toLowerCase();
-  return (
-    book.title.toLowerCase().includes(lowercasedSearchTerm) ||
-    book.desc.toLowerCase().includes(lowercasedSearchTerm) ||
-    book.author.toLowerCase().includes(lowercasedSearchTerm) ||
-    book.genre.toLowerCase().includes(lowercasedSearchTerm) ||
-    book.isbn.toLowerCase().includes(lowercasedSearchTerm) ||
-    book.price.toString().includes(lowercasedSearchTerm) ||
-    book.quantity.toString().includes(lowercasedSearchTerm)
-  );
-});
   
-  // State for new book details
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [authors, setAuthors] = useState([]);
+
+  const filteredBooks = bookRows.filter((book) => {
+    const lowercasedSearchTerm = searchTerm.toLowerCase();
+    return (
+      book.title.toLowerCase().includes(lowercasedSearchTerm) ||
+      book.desc.toLowerCase().includes(lowercasedSearchTerm) ||
+      book.author.toLowerCase().includes(lowercasedSearchTerm) ||
+      book.genre.toLowerCase().includes(lowercasedSearchTerm) ||
+      book.isbn.toLowerCase().includes(lowercasedSearchTerm) ||
+      book.price.toString().includes(lowercasedSearchTerm) ||
+      book.quantity.toString().includes(lowercasedSearchTerm)
+    );
+  });
 
   const decodeJWT = (token) => {
     try {
@@ -90,7 +77,6 @@ const filteredBooks = bookRows.filter((book) => {
     }
   };
 
-  
   const getEmployeeIdFromToken = () => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -100,7 +86,7 @@ const filteredBooks = bookRows.filter((book) => {
 
     try {
       const decodedToken = decodeJWT(token);
-      return decodedToken.employee_id; // Adjust based on your JWT payload
+      return decodedToken.employee_id;
     } catch (error) {
       console.error("Error decoding token:", error);
       return null;
@@ -108,11 +94,10 @@ const filteredBooks = bookRows.filter((book) => {
   };
 
   const employeeId = getEmployeeIdFromToken();
-  console.log(employeeId +"sheikh");
   const [newBook, setNewBook] = useState({
     bookName: '',
     description: '',
-    employeeId: employeeId, // Assuming a static employeeId for now
+    employeeId: employeeId,
     authorName: '',
     categoryName: '',
     isbnNo: '',
@@ -121,13 +106,25 @@ const filteredBooks = bookRows.filter((book) => {
     rating: '',
   });
 
+  const [newCategory, setNewCategory] = useState({
+    categoryName: '',
+    description: '',
+    employeeId: employeeId,
+  });
+  const [newAuthor, setNewAuthor] = useState({
+    authorName: '',
+    description: '',
+    employeeId: employeeId,
+  });
 
   const fetchCategories = async () => {
     try {
       const response = await fetch(`http://localhost:8085/api/v1/category/employee/${employeeId}`);
       if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
       const data = await response.json();
-      setCategories(data);
+      // setCategories(data);
+      setCategories(data.sort((a, b) => a.categoryName.localeCompare(b.categoryName))); // Sort categories alphabetically
+ 
     } catch (error) {
       console.error('Error fetching categories:', error);
     }
@@ -138,12 +135,13 @@ const filteredBooks = bookRows.filter((book) => {
       const response = await fetch(`http://localhost:8085/api/v1/author/employee/${employeeId}`);
       if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
       const data = await response.json();
-      setAuthors(data);
+      // setAuthors(data);
+      setAuthors(data.sort((a, b) => a.authorName.localeCompare(b.authorName))); // Sort authors alphabetically
+  
     } catch (error) {
       console.error('Error fetching authors:', error);
     }
   };
-
 
   const fetchBooks = async () => {
     try {
@@ -173,10 +171,8 @@ const filteredBooks = bookRows.filter((book) => {
 
   const deleteBook = async (id) => {
     const confirmed = window.confirm("Are you sure you want to delete this author?");
+    if (!confirmed) return;
 
-    if (!confirmed) {
-      return; // If user cancels, do nothing
-    }
     try {
       const response = await fetch(`http://localhost:8085/api/v1/book/${id}`, {
         method: 'DELETE',
@@ -192,6 +188,8 @@ const filteredBooks = bookRows.filter((book) => {
   };
 
   const updateBook = async (id, updatedBook) => {
+    // API call logic for updating book
+    // Validations and payload formation
     console.log('Updated Book before API call:', updatedBook);
     
     // Check for validation
@@ -239,7 +237,8 @@ const filteredBooks = bookRows.filter((book) => {
   };
   
 
-  // New function to add a book
+  
+
   const addBook = async () => {
     try {
       const response = await fetch('http://localhost:8085/api/v1/book', {
@@ -261,21 +260,72 @@ const filteredBooks = bookRows.filter((book) => {
       setNewBook({
         bookName: '',
         description: '',
-        employeeId: 2,
+        employeeId: employeeId,
         authorName: '',
         categoryName: '',
         isbnNo: '',
         price: '',
         quantity: '',
         rating: '',
-      }); // Reset new book state
+      });
+    }
+  };
+
+  const addCategory = async () => {
+    try {
+      const response = await fetch('http://localhost:8085/api/v1/category', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newCategory),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      alert('Category added successfully.');
+      fetchCategories(); // Refresh the category list
+    } catch (error) {
+      console.error('Error adding category:', error);
+    } finally {
+      setOpenAddCategoryModal(false);
+      setNewCategory({
+        categoryName: '',
+        description: '',
+        employeeId: employeeId,
+      });
+    }
+  };
+  const addAuthor = async () => {
+    try {
+      const response = await fetch('http://localhost:8085/api/v1/author', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newAuthor),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      alert('Author added successfully.');
+      fetchAuthors(); // Refresh the category list
+    } catch (error) {
+      console.error('Error adding Author:', error);
+    } finally {
+      setOpenAddAuthorModal(false);
+      setNewAuthor({
+        authorName: '',
+        description: '',
+        employeeId: employeeId,
+      });
     }
   };
 
   useEffect(() => {
     fetchBooks();
-    fetchCategories(); // Fetch categories
-    fetchAuthors(); // Fetch authors
+    fetchCategories();
+    fetchAuthors();
   }, []);
 
   const handleOpenDescModal = (desc) => {
@@ -292,8 +342,13 @@ const filteredBooks = bookRows.filter((book) => {
 
   const handleCloseUpdateModal = () => setOpenUpdateModal(false);
 
-  const handleOpenAddModal = () => setOpenAddModal(true); // Open add book modal
-  const handleCloseAddModal = () => setOpenAddModal(false); // Close add book modal
+  const handleOpenAddModal = () => setOpenAddModal(true);
+  const handleCloseAddModal = () => setOpenAddModal(false);
+
+  const handleOpenAddCategoryModal = () => setOpenAddCategoryModal(true);
+  const handleCloseAddCategoryModal = () => setOpenAddCategoryModal(false);
+  const handleOpenAddAuthorModal = () => setOpenAddAuthorModal(true);
+  const handleCloseAddAuthorModal = () => setOpenAddAuthorModal(false);
 
   const bookColumns = [
     { field: 'title', headerName: 'Title', flex: 1 },
@@ -303,7 +358,7 @@ const filteredBooks = bookRows.filter((book) => {
       headerName: 'Description',
       flex: 1,
       renderCell: (params) => {
-        const description = params.row.desc || ''; // Default to an empty string if null
+        const description = params.row.desc || '';
         return (
           <Button
             variant="text"
@@ -326,9 +381,9 @@ const filteredBooks = bookRows.filter((book) => {
     },
     { field: 'genre', headerName: 'Genre', flex: 1 },
     { field: 'isbn', headerName: 'ISBN', flex: 1 },
-    { field: 'price', headerName: 'Price', flex: 1, },
-    { field: 'quantity', headerName: 'Quantity', flex: 1,  },
-    { field: 'rating', headerName: 'Rating', flex: 1,},
+    { field: 'price', headerName: 'Price', flex: 1 },
+    { field: 'quantity', headerName: 'Quantity', flex: 1 },
+    { field: 'rating', headerName: 'Rating', flex: 1 },
     {
       field: 'actions',
       headerName: 'Actions',
@@ -346,7 +401,6 @@ const filteredBooks = bookRows.filter((book) => {
             variant="contained"
             color="secondary"
             onClick={() => deleteBook(params.row.id)}
-            
           >
             Delete
           </Button>
@@ -354,70 +408,57 @@ const filteredBooks = bookRows.filter((book) => {
       ),
     },
   ];
-  
 
   return (
     <Card sx={{ borderRadius: 2, boxShadow: 3 }}>
-      <CardContent>
-      <Box display="flex" justifyContent="space-between" alignItems="center">
-        <Typography variant="h5" component="div" gutterBottom>
-          Book Records
-        </Typography>
-        
-            <Box flex={1} display="flex" justifyContent="flex-start">
-  <TextField
-    variant="outlined"
-    label="Search"
-    value={searchTerm}
-    onChange={(e) => setSearchTerm(e.target.value)}  // Update searchTerm state
-    sx={{
-      width: {
-        xs: '100%',
-        sm: 300,
-      },
-      paddingX: 1,
-    }}
-  />
-</Box>
+      <CardContent sx={{ height: 830, mt: 2, overflowX: 'auto' }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h5" component="div" gutterBottom>
+            Book Records
+          </Typography>
 
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleOpenAddModal} // Open add book modal
-          sx={{ mb: 2 }}
-        >
-          Add Book
-        </Button>
+          <Box flex={1} display="flex" justifyContent="flex-start">
+            <TextField
+              variant="outlined"
+              label="Search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{
+                width: {
+                  xs: '100%',
+                  sm: 300,
+                },
+                paddingX: 1,
+              }}
+            />
+          </Box>
+
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleOpenAddModal}
+            sx={{ mb: 2 }}
+          >
+            Add Book
+          </Button>
         </Box>
-        <Box sx={{ height: 400, mt: 2, overflowX: 'auto' }}>
-        <div style={{ minWidth: '1400px' }}> 
-         
 
-<DataGrid
-  rows={filteredBooks}  // Use filtered rows
-  columns={bookColumns}
-  pageSize={5}
-  rowsPerPageOptions={[5]}
-  loading={loading}
-  checkboxSelection
-  disableSelectionOnClick
-/>
-            </div>
+        <Box sx={{ height: 750, mt: 2, overflowX: 'auto' }}>
+          <div style={{ minWidth: '1400px', }}>
+            <DataGrid
+              rows={filteredBooks}
+              columns={bookColumns}
+              pageSize={5}
+              rowsPerPageOptions={[5]}
+              loading={loading}
+              checkboxSelection
+              disableSelectionOnClick
+            />
+          </div>
         </Box>
       </CardContent>
-      <Modal open={openDescModal} onClose={handleCloseDescModal}>
-        <Box sx={modalStyle}>
-          <Typography variant="h6" component="h2">
-            Full Description
-          </Typography>
-          <Typography sx={{ mt: 2 }}>{selectedDescription}</Typography>
-          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-            <Button onClick={handleCloseDescModal} color="secondary" variant="outlined">
-            Close
-            </Button>
-          </Box>
-        </Box>
-      </Modal>
+
+      {/* Modal for updating */}
       <Modal open={openUpdateModal} onClose={handleCloseUpdateModal}>
         <Box sx={modalStyle}>
           <Typography variant="h6" component="h2">
@@ -429,7 +470,6 @@ const filteredBooks = bookRows.filter((book) => {
             value={selectedBook.title || ''}
             onChange={(e) =>
               setSelectedBook({ ...selectedBook, title: e.target.value })
-              // setSelectedBook({ ...selectedBook, title: e.target.value.trim() })
             }
             sx={{ mt: 2 }}
           />
@@ -443,31 +483,66 @@ const filteredBooks = bookRows.filter((book) => {
             sx={{ mt: 2 }}
           />
           <FormControl fullWidth sx={{ mt: 2 }}>
-              <InputLabel>Category</InputLabel>
-              <Select
-                value={selectedBook.genre}
-                onChange={(e) => setSelectedBook({ ...selectedBook, genre: e.target.value })}
-              >
-                {categories.map((category) => (
-                  <MenuItem key={category.categoryId} value={category.categoryName}>
-                    {category.categoryName}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl fullWidth sx={{ mt: 2 }}>
-              <InputLabel>Author</InputLabel>
-              <Select
-                value={selectedBook.author}
-                onChange={(e) => setSelectedBook({ ...selectedBook, author: e.target.value })}
-              >
-                {authors.map((author) => (
-                  <MenuItem key={author.authorId} value={author.authorName}>
-                    {author.authorName}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <InputLabel>Category</InputLabel>
+            <Select
+              value={selectedBook.genre || ''}
+              onChange={(e) =>
+                setSelectedBook({ ...selectedBook, genre: e.target.value })
+              }
+              MenuProps={{
+                PaperProps: {
+                  style: {
+                    maxHeight: 200, // Adjust the height as needed
+                    overflowY: 'auto', // Enable vertical scrolling
+                  },
+                },
+              }}
+            >
+              {categories.map((category) => (
+                <MenuItem key={category.categoryName} value={category.categoryName}>
+                  {category.categoryName}
+                </MenuItem>
+              ))}
+            </Select>
+            <Tooltip title="Add new category">
+              {/* <IconButton onClick={handleOpenAddCategoryModal} sx={{ ml: 2 }}> */}
+                {/* <AddCircleIcon color="primary" /> */}
+                <div onClick={handleOpenAddCategoryModal} style={{ cursor: 'pointer' }}>
+                  <a style={{fontSize:'15px', textDecoration:'none'}}>add new category</a>
+                </div>
+              {/* </IconButton> */}
+            </Tooltip>
+          </FormControl>
+
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Author</InputLabel>
+            <Select
+              value={selectedBook.author || ''}
+              onChange={(e) =>
+                setSelectedBook({ ...selectedBook, author: e.target.value })
+              }
+              MenuProps={{
+                PaperProps: {
+                  style: {
+                    maxHeight: 200, // Adjust the height as needed
+                    overflowY: 'auto', // Enable vertical scrolling
+                  },
+                },
+              }}
+            >
+              {authors.map((author) => (
+                <MenuItem key={author.authorName} value={author.authorName}>
+                  {author.authorName}
+                </MenuItem>
+              ))}
+            </Select>
+            <Tooltip title="Add new category">
+            <div onClick={handleOpenAddAuthorModal} style={{ cursor: 'pointer' }}>
+                  <a style={{fontSize:'15px', textDecoration:'none'}}>add new Author</a>
+                </div>
+            </Tooltip>
+          </FormControl>
+
           <TextField
             label="ISBN No."
             fullWidth
@@ -480,7 +555,6 @@ const filteredBooks = bookRows.filter((book) => {
           <FormControl fullWidth sx={{ mt: 2 }}>
             <InputLabel>Rating</InputLabel>
             <Select
-              label="Rating"
               value={selectedBook.rating || 1}
               onChange={(e) =>
                 setSelectedBook({ ...selectedBook, rating: e.target.value })
@@ -509,36 +583,32 @@ const filteredBooks = bookRows.filter((book) => {
             fullWidth
             value={selectedBook.quantity || ''}
             onChange={(e) =>
-              setSelectedBook({
-                ...selectedBook,
-                quantity: parseInt(e.target.value, 10),
-              })
+              setSelectedBook({ ...selectedBook, quantity: parseInt(e.target.value, 10) })
             }
             sx={{ mt: 2 }}
           />
           <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            onClick={() => updateBook(selectedBook.id, selectedBook)}
-            sx={{ mt: 2 }}
-            variant="contained"
-            color="primary"
-          >
-            Save
-          </Button>
-
-          <Button
+            <Button
+              onClick={() => updateBook(selectedBook.id, selectedBook)}
+              sx={{ mt: 2 }}
+              variant="contained"
+              color="primary"
+            >
+              Save
+            </Button>
+            <Button
               onClick={handleCloseUpdateModal}
-               sx={{ mt: 2, ml: 1 }}
-               variant="outlined"
-               color="secondary"
-           >
-            Close
-          </Button>
+              sx={{ mt: 2, ml: 1 }}
+              variant="outlined"
+              color="secondary"
+            >
+              Close
+            </Button>
           </Box>
         </Box>
       </Modal>
 
-      {/* Add Book Modal */}
+      {/* Modal for Adding Book */}
       <Modal open={openAddModal} onClose={handleCloseAddModal}>
         <Box sx={modalStyle}>
           <Typography variant="h6" component="h2">
@@ -562,32 +632,65 @@ const filteredBooks = bookRows.filter((book) => {
             }
             sx={{ mt: 2 }}
           />
+
           <FormControl fullWidth sx={{ mt: 2 }}>
-              <InputLabel>Category</InputLabel>
-              <Select
-                value={newBook.categoryName}
-                onChange={(e) => setNewBook({ ...newBook, categoryName: e.target.value })}
-              >
-                {categories.map((category) => (
-                  <MenuItem key={category.categoryId} value={category.categoryName}>
-                    {category.categoryName}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl fullWidth sx={{ mt: 2 }}>
-              <InputLabel>Author</InputLabel>
-              <Select
-                value={newBook.authorName}
-                onChange={(e) => setNewBook({ ...newBook, authorName: e.target.value })}
-              >
-                {authors.map((author) => (
-                  <MenuItem key={author.authorId} value={author.authorName}>
-                    {author.authorName}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <InputLabel>Category</InputLabel>
+            <Select
+              value={newBook.categoryName || ''}
+              onChange={(e) =>
+                setNewBook({ ...newBook, categoryName: e.target.value })
+              }
+              MenuProps={{
+                PaperProps: {
+                  style: {
+                    maxHeight: 200, // Adjust the height as needed
+                    overflowY: 'auto', // Enable vertical scrolling
+                  },
+                },
+              }}
+            >
+              {categories.map((category) => (
+                <MenuItem key={category.categoryName} value={category.categoryName}>
+                  {category.categoryName}
+                </MenuItem>
+              ))}
+            </Select>
+            <Tooltip title="Add new category">
+            <div onClick={handleOpenAddCategoryModal} style={{ cursor: 'pointer' }}>
+                  <a style={{fontSize:'15px', textDecoration:'none'}}>add new category</a>
+                </div>
+            </Tooltip>
+          </FormControl>
+
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Author</InputLabel>
+            <Select
+              value={newBook.authorName || ''}
+              onChange={(e) =>
+                setNewBook({ ...newBook, authorName: e.target.value })
+              }
+              MenuProps={{
+                PaperProps: {
+                  style: {
+                    maxHeight: 200, // Adjust the height as needed
+                    overflowY: 'auto', // Enable vertical scrolling
+                  },
+                },
+              }}
+            >
+              {authors.map((author) => (
+                <MenuItem key={author.authorName} value={author.authorName}>
+                  {author.authorName}
+                </MenuItem>
+              ))}
+            </Select>
+            <Tooltip title="Add new category">
+            <div onClick={handleOpenAddAuthorModal} style={{ cursor: 'pointer' }}>
+                  <a style={{fontSize:'15px', textDecoration:'none'}}>add new Author</a>
+                </div>
+            </Tooltip>
+          </FormControl>
+
           <TextField
             label="ISBN No."
             fullWidth
@@ -598,21 +701,21 @@ const filteredBooks = bookRows.filter((book) => {
             sx={{ mt: 2 }}
           />
           <FormControl fullWidth sx={{ mt: 2 }}>
-      <InputLabel>Rating</InputLabel>
-      <Select
-        label="Rating"
-        value={newBook.rating || ''}
-        onChange={(e) =>
-          setNewBook({ ...newBook, rating: e.target.value })
-        }
-      >
-        {[1, 2, 3, 4, 5].map((rating) => (
-          <MenuItem key={rating} value={rating}>
-            {rating}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+            <InputLabel>Rating</InputLabel>
+            <Select
+              value={newBook.rating || 1}
+              onChange={(e) =>
+                setNewBook({ ...newBook, rating: e.target.value })
+              }
+            >
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <MenuItem key={rating} value={rating}>
+                  {rating}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
           <TextField
             label="Price"
             type="number"
@@ -623,6 +726,7 @@ const filteredBooks = bookRows.filter((book) => {
             }
             sx={{ mt: 2 }}
           />
+
           <TextField
             label="Quantity"
             type="number"
@@ -633,33 +737,99 @@ const filteredBooks = bookRows.filter((book) => {
             }
             sx={{ mt: 2 }}
           />
+
           <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            onClick={addBook}
-            sx={{ mt: 2 }}
-            variant="contained"
-            color="primary"
-          >
-            Add Book
-          </Button>
-          <Button
-             onClick={handleCloseAddModal}
-              sx={{ mt: 2, ml: 1 }}
-            variant="outlined"
-              color="secondary"
-            >
-          Close
+            <Button onClick={addBook} sx={{ mt: 2 }} variant="contained">
+              Add Book
             </Button>
-            </Box>
+            <Button
+              onClick={handleCloseAddModal}
+              sx={{ mt: 2, ml: 1 }}
+              variant="outlined"
+            >
+              Close
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* Modal for Adding Category */}
+      <Modal open={openAddCategoryModal} onClose={handleCloseAddCategoryModal}>
+        <Box sx={modalStyle}>
+          <Typography variant="h6" component="h2">
+            Add Category
+          </Typography>
+          <TextField
+            label="Category Name"
+            fullWidth
+            value={newCategory.categoryName}
+            onChange={(e) =>
+              setNewCategory({ ...newCategory, categoryName: e.target.value })
+            }
+            sx={{ mt: 2 }}
+          />
+          <TextField
+            label="Description"
+            fullWidth
+            value={newCategory.description}
+            onChange={(e) =>
+              setNewCategory({ ...newCategory, description: e.target.value })
+            }
+            sx={{ mt: 2 }}
+          />
+          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+            <Button onClick={addCategory} sx={{ mt: 2 }} variant="contained">
+              Add Category
+            </Button>
+            <Button
+              onClick={handleCloseAddCategoryModal}
+              sx={{ mt: 2, ml: 1 }}
+              variant="outlined"
+            >
+              Close
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+      <Modal open={openAddAuthorModal} onClose={handleCloseAddAuthorModal}>
+        <Box sx={modalStyle}>
+          <Typography variant="h6" component="h2">
+            Add Author
+          </Typography>
+          <TextField
+            label="Author Name"
+            fullWidth
+            value={newAuthor.authorName}
+            onChange={(e) =>
+              setNewAuthor({ ...newAuthor, authorName: e.target.value })
+            }
+            sx={{ mt: 2 }}
+          />
+          <TextField
+            label="Description"
+            fullWidth
+            value={newAuthor.description}
+            onChange={(e) =>
+              setNewAuthor({ ...newAuthor, description: e.target.value })
+            }
+            sx={{ mt: 2 }}
+          />
+          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+            <Button onClick={addAuthor} sx={{ mt: 2 }} variant="contained">
+              Add Author
+            </Button>
+            <Button
+              onClick={handleCloseAddAuthorModal}
+              sx={{ mt: 2, ml: 1 }}
+              variant="outlined"
+            >
+              Close
+            </Button>
+          </Box>
         </Box>
       </Modal>
     </Card>
   );
-};
-
-Book.propTypes = {
-  rows: PropTypes.array,
-  columns: PropTypes.array,
 };
 
 export default Book;
