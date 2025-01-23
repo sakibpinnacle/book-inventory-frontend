@@ -16,6 +16,10 @@ import { useNavigate } from 'react-router';
 import FormControl from '@mui/material/FormControl';
 
 
+/* first */
+/* second */
+/* third */
+/* Fourth */
 
 
 const modalStyle = {
@@ -57,6 +61,8 @@ const Book = () => {
   const [selectedDescription, setSelectedDescription] = useState('');
 
 const [searchTerm, setSearchTerm] = useState('');
+const [categories, setCategories] = useState([]); // State for categories
+const [authors, setAuthors] = useState([]); // State for autho
 
 // Filter the books based on the search term
 const filteredBooks = bookRows.filter((book) => {
@@ -114,6 +120,29 @@ const filteredBooks = bookRows.filter((book) => {
     quantity: '',
     rating: '',
   });
+
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(`http://localhost:8085/api/v1/category/employee/${employeeId}`);
+      if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+      const data = await response.json();
+      setCategories(data);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  const fetchAuthors = async () => {
+    try {
+      const response = await fetch(`http://localhost:8085/api/v1/author/employee/${employeeId}`);
+      if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+      const data = await response.json();
+      setAuthors(data);
+    } catch (error) {
+      console.error('Error fetching authors:', error);
+    }
+  };
 
 
   const fetchBooks = async () => {
@@ -245,6 +274,8 @@ const filteredBooks = bookRows.filter((book) => {
 
   useEffect(() => {
     fetchBooks();
+    fetchCategories(); // Fetch categories
+    fetchAuthors(); // Fetch authors
   }, []);
 
   const handleOpenDescModal = (desc) => {
@@ -332,21 +363,7 @@ const filteredBooks = bookRows.filter((book) => {
         <Typography variant="h5" component="div" gutterBottom>
           Book Records
         </Typography>
-        {/* <Box flex={1} display="flex" justifyContent="flex-start">
-              <TextField
-                variant="outlined"
-                label="Search Author"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                sx={{
-                  width: {
-                    xs: '100%',
-                    sm: 300,
-                  },
-                  paddingX: 1,
-                }}
-              />
-            </Box> */}
+        
             <Box flex={1} display="flex" justifyContent="flex-start">
   <TextField
     variant="outlined"
@@ -374,15 +391,7 @@ const filteredBooks = bookRows.filter((book) => {
         </Box>
         <Box sx={{ height: 400, mt: 2, overflowX: 'auto' }}>
         <div style={{ minWidth: '1400px' }}> 
-          {/* <DataGrid
-            rows={bookRows}
-            columns={bookColumns}
-            pageSize={5}
-            rowsPerPageOptions={[5]}
-            loading={loading}
-            checkboxSelection
-            disableSelectionOnClick
-          /> */}
+         
 
 <DataGrid
   rows={filteredBooks}  // Use filtered rows
@@ -433,24 +442,32 @@ const filteredBooks = bookRows.filter((book) => {
             }
             sx={{ mt: 2 }}
           />
-          <TextField
-            label="Genre"
-            fullWidth
-            value={selectedBook.genre || ''}
-            onChange={(e) =>
-              setSelectedBook({ ...selectedBook, genre: e.target.value })
-            }
-            sx={{ mt: 2 }}
-          />
-          <TextField
-            label="Author"
-            fullWidth
-            value={selectedBook.author || ''}
-            onChange={(e) =>
-              setSelectedBook({ ...selectedBook, author: e.target.value })
-            }
-            sx={{ mt: 2 }}
-          />
+          <FormControl fullWidth sx={{ mt: 2 }}>
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={selectedBook.genre}
+                onChange={(e) => setSelectedBook({ ...selectedBook, genre: e.target.value })}
+              >
+                {categories.map((category) => (
+                  <MenuItem key={category.categoryId} value={category.categoryName}>
+                    {category.categoryName}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth sx={{ mt: 2 }}>
+              <InputLabel>Author</InputLabel>
+              <Select
+                value={selectedBook.author}
+                onChange={(e) => setSelectedBook({ ...selectedBook, author: e.target.value })}
+              >
+                {authors.map((author) => (
+                  <MenuItem key={author.authorId} value={author.authorName}>
+                    {author.authorName}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           <TextField
             label="ISBN No."
             fullWidth
@@ -545,24 +562,32 @@ const filteredBooks = bookRows.filter((book) => {
             }
             sx={{ mt: 2 }}
           />
-          <TextField
-            label="Genre"
-            fullWidth
-            value={newBook.categoryName}
-            onChange={(e) =>
-              setNewBook({ ...newBook, categoryName: e.target.value })
-            }
-            sx={{ mt: 2 }}
-          />
-          <TextField
-            label="Author"
-            fullWidth
-            value={newBook.authorName}
-            onChange={(e) =>
-              setNewBook({ ...newBook, authorName: e.target.value })
-            }
-            sx={{ mt: 2 }}
-          />
+          <FormControl fullWidth sx={{ mt: 2 }}>
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={newBook.categoryName}
+                onChange={(e) => setNewBook({ ...newBook, categoryName: e.target.value })}
+              >
+                {categories.map((category) => (
+                  <MenuItem key={category.categoryId} value={category.categoryName}>
+                    {category.categoryName}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth sx={{ mt: 2 }}>
+              <InputLabel>Author</InputLabel>
+              <Select
+                value={newBook.authorName}
+                onChange={(e) => setNewBook({ ...newBook, authorName: e.target.value })}
+              >
+                {authors.map((author) => (
+                  <MenuItem key={author.authorId} value={author.authorName}>
+                    {author.authorName}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           <TextField
             label="ISBN No."
             fullWidth
@@ -572,16 +597,22 @@ const filteredBooks = bookRows.filter((book) => {
             }
             sx={{ mt: 2 }}
           />
-          <TextField
-            label="Rating"
-            type="number"
-            fullWidth
-            value={newBook.rating}
-            onChange={(e) =>
-              setNewBook({ ...newBook, rating: parseInt(e.target.value, 10) })
-            }
-            sx={{ mt: 2 }}
-          />
+          <FormControl fullWidth sx={{ mt: 2 }}>
+      <InputLabel>Rating</InputLabel>
+      <Select
+        label="Rating"
+        value={newBook.rating || ''}
+        onChange={(e) =>
+          setNewBook({ ...newBook, rating: e.target.value })
+        }
+      >
+        {[1, 2, 3, 4, 5].map((rating) => (
+          <MenuItem key={rating} value={rating}>
+            {rating}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
           <TextField
             label="Price"
             type="number"
