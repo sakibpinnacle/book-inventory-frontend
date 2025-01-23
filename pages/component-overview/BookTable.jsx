@@ -9,7 +9,12 @@ import Modal from '@mui/material/Modal';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import InputLabel from '@mui/material/InputLabel';
 import { useNavigate } from 'react-router';
+import FormControl from '@mui/material/FormControl';
+
 
 
 
@@ -52,6 +57,9 @@ const Book = () => {
   const [selectedDescription, setSelectedDescription] = useState('');
 
 const [searchTerm, setSearchTerm] = useState('');
+const [categories, setCategories] = useState([]);
+const [newCategory, setNewCategory] = useState('')
+
 
 // Filter the books based on the search term
 const filteredBooks = bookRows.filter((book) => {
@@ -111,6 +119,51 @@ const filteredBooks = bookRows.filter((book) => {
   });
 
 
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch(`http://localhost:8085/api/v1/category/employee/${employeeId}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const data = await response.json();
+        setCategories(data);  // Store the fetched categories in state
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+  
+    fetchCategories();
+  }, [employeeId]); // Add employeeId as a dependency if it changes
+
+
+  const handleSaveCategory = async () => {
+  if (newCategory.trim()) {
+    try {
+      const response = await fetch('http://localhost:8085/api/v1/category', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ categoryName: newCategory, employeeId: employeeId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      alert('Category added successfully');
+      fetchCategories(); // Re-fetch categories to include the new one
+      setNewCategory(''); // Clear the new category input
+    } catch (error) {
+      console.error('Error adding category:', error);
+    }
+  }
+};
+
+  
+
   const fetchBooks = async () => {
     try {
       const response = await fetch(`http://localhost:8085/api/v1/book/employee/${employeeId}`);
@@ -138,6 +191,11 @@ const filteredBooks = bookRows.filter((book) => {
   };
 
   const deleteBook = async (id) => {
+    const confirmed = window.confirm("Are you sure you want to delete this author?");
+
+    if (!confirmed) {
+      return; // If user cancels, do nothing
+    }
     try {
       const response = await fetch(`http://localhost:8085/api/v1/book/${id}`, {
         method: 'DELETE',
@@ -285,9 +343,9 @@ const filteredBooks = bookRows.filter((book) => {
     },
     { field: 'genre', headerName: 'Genre', flex: 1 },
     { field: 'isbn', headerName: 'ISBN', flex: 1 },
-    { field: 'price', headerName: 'Price', flex: 1, type: 'number' },
-    { field: 'quantity', headerName: 'Quantity', flex: 1, type: 'number' },
-    { field: 'rating', headerName: 'Rating', flex: 1, type: 'number' },
+    { field: 'price', headerName: 'Price', flex: 1, },
+    { field: 'quantity', headerName: 'Quantity', flex: 1,  },
+    { field: 'rating', headerName: 'Rating', flex: 1,},
     {
       field: 'actions',
       headerName: 'Actions',
@@ -305,6 +363,7 @@ const filteredBooks = bookRows.filter((book) => {
             variant="contained"
             color="secondary"
             onClick={() => deleteBook(params.row.id)}
+            
           >
             Delete
           </Button>
@@ -361,7 +420,8 @@ const filteredBooks = bookRows.filter((book) => {
           Add Book
         </Button>
         </Box>
-        <Box sx={{ height: 400, mt: 2 }}>
+        <Box sx={{ height: 400, mt: 2, overflowX: 'auto' }}>
+        <div style={{ minWidth: '1400px' }}> 
           {/* <DataGrid
             rows={bookRows}
             columns={bookColumns}
@@ -381,7 +441,7 @@ const filteredBooks = bookRows.filter((book) => {
   checkboxSelection
   disableSelectionOnClick
 />
-
+            </div>
         </Box>
       </CardContent>
       <Modal open={openDescModal} onClose={handleCloseDescModal}>
@@ -421,15 +481,39 @@ const filteredBooks = bookRows.filter((book) => {
             }
             sx={{ mt: 2 }}
           />
-          <TextField
-            label="Genre"
-            fullWidth
-            value={selectedBook.genre || ''}
-            onChange={(e) =>
-              setSelectedBook({ ...selectedBook, genre: e.target.value })
-            }
-            sx={{ mt: 2 }}
-          />
+        <FormControl fullWidth sx={{ mt: 2 }}>
+  <InputLabel>Category</InputLabel>
+  <Select
+    label="Category"
+    value={selectedBook.genre || ''}
+    onChange={(e) => setSelectedBook({ ...selectedBook, genre: e.target.value })}
+  >
+    <MenuItem value="">
+      <em>None</em>
+    </MenuItem>
+    {categories.map((category) => (
+      <MenuItem key={category.categoryId} value={category.categoryName}>
+        {category.categoryName}
+      </MenuItem>
+    ))}
+    <MenuItem value="new-category">
+      Add New Category
+    </MenuItem>
+  </Select>
+</FormControl>
+
+{/* Show an input field to add a new category if 'Add New Category' is selected */}
+{selectedBook.genre === 'new-category' && (
+  <TextField
+    label="New Category"
+    fullWidth
+    value={newCategory}
+    onChange={(e) => setNewCategory(e.target.value)}
+    sx={{ mt: 2 }}
+  />
+)}
+
+
           <TextField
             label="Author"
             fullWidth
@@ -448,19 +532,22 @@ const filteredBooks = bookRows.filter((book) => {
             }
             sx={{ mt: 2 }}
           />
-          <TextField
-            label="Rating"
-            type="number"
-            fullWidth
-            value={selectedBook.rating || ''}
-            onChange={(e) =>
-              setSelectedBook({
-                ...selectedBook,
-                rating: parseInt(e.target.value, 10),
-              })
-            }
-            sx={{ mt: 2 }}
-          />
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Rating</InputLabel>
+            <Select
+              label="Rating"
+              value={selectedBook.rating || 1}
+              onChange={(e) =>
+                setSelectedBook({ ...selectedBook, rating: e.target.value })
+              }
+            >
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <MenuItem key={rating} value={rating}>
+                  {rating}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <TextField
             label="Price"
             type="number"
@@ -530,15 +617,39 @@ const filteredBooks = bookRows.filter((book) => {
             }
             sx={{ mt: 2 }}
           />
-          <TextField
-            label="Genre"
-            fullWidth
-            value={newBook.categoryName}
-            onChange={(e) =>
-              setNewBook({ ...newBook, categoryName: e.target.value })
-            }
-            sx={{ mt: 2 }}
-          />
+          <FormControl fullWidth sx={{ mt: 2 }}>
+  <InputLabel>Category</InputLabel>
+  <Select
+    label="Category"
+    value={selectedBook.genre || ''}
+    onChange={(e) => setSelectedBook({ ...selectedBook, genre: e.target.value })}
+  >
+    <MenuItem value="">
+      <em>None</em>
+    </MenuItem>
+    {categories.map((category) => (
+      <MenuItem key={category.categoryId} value={category.categoryName}>
+        {category.categoryName}
+      </MenuItem>
+    ))}
+    <MenuItem value="new-category">
+      Add New Category
+    </MenuItem>
+  </Select>
+</FormControl>
+
+{/* Show an input field to add a new category if 'Add New Category' is selected */}
+{selectedBook.genre === 'new-category' && (
+  <TextField
+    label="New Category"
+    fullWidth
+    value={newCategory}
+    onChange={(e) => setNewCategory(e.target.value)}
+    sx={{ mt: 2 }}
+  />
+)}
+
+
           <TextField
             label="Author"
             fullWidth
@@ -557,16 +668,22 @@ const filteredBooks = bookRows.filter((book) => {
             }
             sx={{ mt: 2 }}
           />
-          <TextField
-            label="Rating"
-            type="number"
-            fullWidth
-            value={newBook.rating}
-            onChange={(e) =>
-              setNewBook({ ...newBook, rating: parseInt(e.target.value, 10) })
-            }
-            sx={{ mt: 2 }}
-          />
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Rating</InputLabel>
+            <Select
+              label="Rating"
+              value={selectedBook.rating || 1}
+              onChange={(e) =>
+                setSelectedBook({ ...selectedBook, rating: e.target.value })
+              }
+            >
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <MenuItem key={rating} value={rating}>
+                  {rating}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <TextField
             label="Price"
             type="number"

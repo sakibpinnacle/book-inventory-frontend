@@ -37,7 +37,7 @@ const MainRoutes = {
       path: 'dashboard',
       children: [
         {
-          path: 'default',
+          path: '',
           element: <DashboardDefault />
         }
       ]
@@ -66,7 +66,8 @@ const MainRoutes = {
   {
     path:'category',
     element:<Category/>
-  },
+  }
+  ,
   {
     path:'logout',
     element:<AuthLogout/>

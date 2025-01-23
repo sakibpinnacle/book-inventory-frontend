@@ -25,6 +25,7 @@ const Category1 = () => {
   const [newDescription, setNewDescription] = useState('');
   const [selectedDescription, setSelectedDescription] = useState(''); // State for selected description
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  
 
 
 
@@ -100,6 +101,11 @@ const Category1 = () => {
   };
 
   const handleDelete = async (id) => {
+    const confirmed = window.confirm("Are you sure you want to delete this author?");
+
+    if (!confirmed) {
+      return; // If user cancels, do nothing
+    }
     try {
       const response = await fetch(`http://localhost:8085/api/v1/category/${id}`, {
         method: 'DELETE',
@@ -341,7 +347,8 @@ const Category1 = () => {
           Add Category
         </Button>
         </Box>
-        <Box sx={{ height: 700, mt: 2 }}>
+        <Box sx={{ height: 400, mt: 2, overflowX: 'auto' }}>
+      <div style={{ minWidth: '1000px' }}> 
           {/* <DataGrid
             rows={rows}
             columns={columns}
@@ -361,6 +368,7 @@ const Category1 = () => {
             disableSelectionOnClick
             loading={loading}
           />
+          </div>
         </Box>
       </CardContent>
 

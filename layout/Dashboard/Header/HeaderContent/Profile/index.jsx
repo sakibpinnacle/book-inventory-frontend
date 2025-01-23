@@ -73,9 +73,9 @@ const navigate = useNavigate();
 
   const handleLogout = () => {
    
-  
+    localStorage.removeItem("token");
     // Redirect to the logout URL
-    navigate("/logout");
+    navigate("/login");
   };
 
   const getEmployeeIdFromToken = () => {

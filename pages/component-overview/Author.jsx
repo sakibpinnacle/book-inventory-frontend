@@ -53,8 +53,8 @@ const authorColumns = (handleDelete, openModal, handleOpenDescModal) => [
       );
     },
   },
-  // { field: 'createdAt', headerName: 'Created At', flex: 1 },
-  // { field: 'updatedAt', headerName: 'Updated At', flex: 1 },
+  { field: 'createdAt', headerName: 'Created At', flex: 1 },
+  { field: 'updatedAt', headerName: 'Updated At', flex: 1 },
   {
     field: 'actions',
     headerName: 'Actions',
@@ -75,6 +75,7 @@ const authorColumns = (handleDelete, openModal, handleOpenDescModal) => [
           color="secondary"
           size="small"
           onClick={() => handleDelete(params.row.authorId)}
+          
         >
           Delete
         </Button>
@@ -177,6 +178,11 @@ const Author = () => {
   }, [searchTerm, authors]);
 
   const handleDelete = async (authorId) => {
+    const confirmed = window.confirm("Are you sure you want to delete this author?");
+
+    if (!confirmed) {
+      return; // If user cancels, do nothing
+    }
     try {
       const response = await fetch(`http://localhost:8085/api/v1/author/${authorId}`, {
         method: 'DELETE',
@@ -347,7 +353,8 @@ const Author = () => {
               Add Author
             </Button>
           </Box>
-          <Box sx={{ height: 400, mt: 2 }}>
+          <Box sx={{ height: 400, mt: 2, overflowX: 'auto' }}>
+      <div style={{ minWidth: '1000px' }}> 
             {loading ? (
               <Typography variant="h6" color="textSecondary">
                 Loading authors...
@@ -363,6 +370,7 @@ const Author = () => {
                 getRowId={(row) => row.authorId}
               />
             )}
+            </div>
           </Box>
         </CardContent>
       </Card>

@@ -50,7 +50,8 @@ const utilities = {
       url: '/author',
 
       // icon: icons.BarcodeOutlined
-    },
+    }
+    // ,
     // {
     //   id: 'util-typography',
     //   title: 'typography Section',
@@ -78,13 +79,13 @@ const utilities = {
     //   icon: icons.BarcodeOutlined
     // },
     
-    {
-      id: 'logout',
-      title: 'Logout',
-      type: 'item',
-      url: '/logout',
+    // {
+    //   id: 'logout',
+    //   title: 'Logout',
+    //   type: 'item',
+    //   url: '/logout',
     
-    }
+    // }
   ]
 };
 
