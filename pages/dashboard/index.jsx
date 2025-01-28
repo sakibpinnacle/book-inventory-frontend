@@ -17,11 +17,14 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
 import { useState, useEffect } from 'react';
 
 // project import
 import MainCard from 'components/MainCard';
 import AnalyticEcommerce from 'components/cards/statistics/AnalyticEcommerce';
+import { useNavigate } from 'react-router';
 
 // assets
 // ... (your existing imports)
@@ -29,28 +32,141 @@ import AnalyticEcommerce from 'components/cards/statistics/AnalyticEcommerce';
 // ==============================|| DASHBOARD - DEFAULT ||============================== //
 
 export default function DashboardDefault() {
+
+  const navigate = useNavigate();
+  const verifyToken = () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      return false;
+    }
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+      return payload.exp > currentTime; // Check if the token is still valid
+    } catch (error) {
+      console.error("Error verifying token:", error);
+      return false;
+    }
+  };
+
+  // Check for the token and redirect to login if not present
+//   useEffect(() => {
+//     const token = localStorage.getItem("token");
+//     if (!token || !verifyToken) {
+//       navigate("/login");
+//     }
+//   }, [navigate]);
+   useEffect(() => {
+      if (!verifyToken()) {
+        setSnackbar({ open: true, message: 'Session Expire!', severity: 'error' });
+        setTimeout(() => {
+            navigate("/login");
+          }, 2000); 
+      }
+    }, [navigate]);
+
+
+
     const [totalPageViews, setTotalPageViews] = useState(0);
     const [totalUsers, setTotalUsers] = useState(0);
     const [totalOrders, setTotalOrders] = useState(0);
     const [totalSales, setTotalSales] = useState(0);
     const [bookData, setBookData] = useState([]);
+ const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+ const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
+
+    const decodeJWT = (token) => {
+        try {
+          const payload = token.split(".")[1];
+          return JSON.parse(atob(payload));
+        } catch (error) {
+          console.error("Failed to decode JWT:", error);
+          return null;
+        }
+      };
+    
+      const token = localStorage.getItem("token");
+      const getEmployeeIdFromToken = () => {
+        if (!token) {
+          console.error("Token not found in localStorage");
+          return null;
+        }
+    
+        try {
+          const decodedToken = decodeJWT(token);
+
+          return decodedToken.employee_id;
+        } catch (error) {
+          console.error("Error decoding token:", error);
+          return null;
+        }
+      };
+      const getEmployeeNameFromToken = () => {
+        if (!token) {
+          console.error("Token not found in localStorage");
+          return null;
+        }
+    
+        try {
+          const decodedToken = decodeJWT(token);
+          
+          return decodedToken.employee_name;
+        } catch (error) {
+          console.error("Error decoding token:", error);
+          return null;
+        }
+      };
+
+      const employee_name = getEmployeeNameFromToken();
+    
+      const employeeId = getEmployeeIdFromToken();
+
+
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 // Fetch book data
-                const bookDataResponse = await fetch('http://localhost:8085/api/v1/book/employee/2');
+                const bookDataResponse = await fetch(`http://localhost:8085/api/v1/book/employee/${employeeId}`,{
+                    method: 'GET',
+                    headers:{
+                      Authorization: `Bearer ${token}`
+                    },
+                  });
+
+
+                  const newToken = bookDataResponse.headers.get('Authorization');
+          console.log(newToken+"hiii")
+          if (newToken) {
+            
+            // Store the new token in localStorage (or sessionStorage, if preferred)
+            localStorage.setItem('token', newToken.replace('Bearer ', ''));
+          }
+          console.log(localStorage.getItem('token'))
                 const bookData = await bookDataResponse.json();
                 setBookData(bookData);
                 setTotalPageViews(bookData.length); // Assuming this is how you get total page views
 
                 // Fetch author data
-                const authorResponse = await fetch('http://localhost:8085/api/v1/author/employee/2');
+                const authorResponse = await fetch(`http://localhost:8085/api/v1/author/employee/${employeeId}`,{
+          method: 'GET',
+          headers:{
+            Authorization: `Bearer ${token}`
+          },
+        });
                 const authors = await authorResponse.json();
                 setTotalUsers(authors.length); // Assuming this is how you get total users
 
                 // Fetch category data
-                const categoryResponse = await fetch('http://localhost:8085/api/v1/category/employee/2');
+                const categoryResponse = await fetch(`http://localhost:8085/api/v1/category/employee/${employeeId}`,{
+                    method: 'GET',
+                    headers:{
+                      Authorization: `Bearer ${token}`
+                    },
+                  });
                 const categories = await categoryResponse.json();
                 setTotalOrders(categories.length); // Assuming this is how you get total orders
 
@@ -69,6 +185,9 @@ export default function DashboardDefault() {
                 <Typography variant="h5">Dashboard</Typography>
             </Grid>
             <Grid item xs={12} sm={6} md={4} lg={3}>
+                <AnalyticEcommerce title="Hii" count={employee_name} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4} lg={3}>
                 <AnalyticEcommerce title="Total No. of Book" count={totalPageViews}  />
             </Grid>
             <Grid item xs={12} sm={6} md={4} lg={3}>
@@ -77,9 +196,7 @@ export default function DashboardDefault() {
             <Grid item xs={12} sm={6} md={4} lg={3}>
                 <AnalyticEcommerce title="Total No. of category" count={totalOrders}  />
             </Grid>
-            <Grid item xs={12} sm={6} md={4} lg={3}>
-                <AnalyticEcommerce title="Total Sales" count={totalSales} percentage={27.4} isLoss color="warning" extra="$20,395" />
-            </Grid>
+           
 
             {/* row 3 */}
             <Grid item xs={12}>
@@ -119,6 +236,15 @@ export default function DashboardDefault() {
                     )}
                 </MainCard>
             </Grid>
+                  <Snackbar
+                          open={snackbar.open}
+                          autoHideDuration={6000}
+                          onClose={handleSnackbarClose}
+                        >
+                          <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
+                            {snackbar.message}
+                          </Alert>
+                        </Snackbar>
         </Grid>
     );
 }

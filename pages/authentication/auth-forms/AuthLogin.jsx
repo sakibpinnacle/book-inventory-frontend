@@ -1,6 +1,8 @@
 import PropTypes from "prop-types";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
 
 // material-ui
 import {
@@ -53,19 +55,22 @@ const AuthLogin = ({ isDemo = false }) => {
     // Check for the token and redirect to login if not present
     useEffect(() => {
       const token = localStorage.getItem("token");
-      if (token) {
+      if (verifyToken()) {
         navigate("/dashboard");
       }
     }, [navigate]);
   const [checked, setChecked] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [apiError, setApiError] = useState("");
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   // const navigate = useNavigate();
  
   const handleClickShowPassword = () => {
     setShowPassword(!showPassword);
   };
-
+  const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
   const handleMouseDownPassword = (event) => {
     event.preventDefault();
   };
@@ -186,7 +191,7 @@ const AuthLogin = ({ isDemo = false }) => {
                   </FormHelperText>
                 )}
               </Grid>
-              <Grid item xs={12}>
+              {/* <Grid item xs={12}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <FormControlLabel
                     control={
@@ -203,7 +208,7 @@ const AuthLogin = ({ isDemo = false }) => {
                     Forgot Password?
                   </Link>
                 </Stack>
-              </Grid>
+              </Grid> */}
               {apiError && (
                 <Grid item xs={12}>
                   <FormHelperText error>{apiError}</FormHelperText>
@@ -236,6 +241,15 @@ const AuthLogin = ({ isDemo = false }) => {
           </form>
         )}
       </Formik>
+       <Snackbar
+              open={snackbar.open}
+              autoHideDuration={6000}
+              onClose={handleSnackbarClose}
+            >
+              <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
+                {snackbar.message}
+              </Alert>
+            </Snackbar>
     </>
   );
 };

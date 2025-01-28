@@ -17,6 +17,9 @@ import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import AddCircleIcon from '@mui/icons-material/AddCircle'; // Add this import for the icon
 import Tooltip from '@mui/material/Tooltip';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
+
 
 const modalStyle = {
   position: 'absolute',
@@ -33,10 +36,29 @@ const modalStyle = {
 const Book = () => {
   const navigate = useNavigate();
 
-  useEffect(() => {
+  const verifyToken = () => {
     const token = localStorage.getItem("token");
     if (!token) {
-      navigate("/login");
+      return false;
+    }
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+      return payload.exp > currentTime; // Check if the token is still valid
+    } catch (error) {
+      console.error("Error verifying token:", error);
+      return false;
+    }
+  };
+
+  // Check for the token and redirect to login if not present
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!verifyToken()) {
+      setSnackbar({ open: true, message: 'Session Expire!', severity: 'error' });
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000); 
     }
   }, [navigate]);
 
@@ -49,7 +71,9 @@ const Book = () => {
   const [openAddAuthorModal, setOpenAddAuthorModal] = useState(false);
   const [selectedBook, setSelectedBook] = useState({});
   const [selectedDescription, setSelectedDescription] = useState('');
-  
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+
   const [searchTerm, setSearchTerm] = useState('');
   const [categories, setCategories] = useState([]);
   const [authors, setAuthors] = useState([]);
@@ -77,8 +101,8 @@ const Book = () => {
     }
   };
 
+  const token = localStorage.getItem("token");
   const getEmployeeIdFromToken = () => {
-    const token = localStorage.getItem("token");
     if (!token) {
       console.error("Token not found in localStorage");
       return null;
@@ -119,12 +143,17 @@ const Book = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`http://localhost:8085/api/v1/category/employee/${employeeId}`);
+      const response = await fetch(`http://localhost:8085/api/v1/category/employee/${employeeId}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+      });
       if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
       const data = await response.json();
       // setCategories(data);
       setCategories(data.sort((a, b) => a.categoryName.localeCompare(b.categoryName))); // Sort categories alphabetically
- 
+
     } catch (error) {
       console.error('Error fetching categories:', error);
     }
@@ -132,12 +161,17 @@ const Book = () => {
 
   const fetchAuthors = async () => {
     try {
-      const response = await fetch(`http://localhost:8085/api/v1/author/employee/${employeeId}`);
+      const response = await fetch(`http://localhost:8085/api/v1/author/employee/${employeeId}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+      });
       if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
       const data = await response.json();
       // setAuthors(data);
       setAuthors(data.sort((a, b) => a.authorName.localeCompare(b.authorName))); // Sort authors alphabetically
-  
+
     } catch (error) {
       console.error('Error fetching authors:', error);
     }
@@ -145,10 +179,23 @@ const Book = () => {
 
   const fetchBooks = async () => {
     try {
-      const response = await fetch(`http://localhost:8085/api/v1/book/employee/${employeeId}`);
+      const response = await fetch(`http://localhost:8085/api/v1/book/employee/${employeeId}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+      });
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
+      const newToken = response.headers.get('Authorization');
+      if (newToken) {
+
+        // Store the new token in localStorage (or sessionStorage, if preferred)
+        localStorage.setItem('token', newToken.replace('Bearer ', ''));
+      }
+      console.log(localStorage.getItem('token'))
+
       const data = await response.json();
       const books = data.map((book) => ({
         id: book.bookId,
@@ -176,14 +223,20 @@ const Book = () => {
     try {
       const response = await fetch(`http://localhost:8085/api/v1/book/${id}`, {
         method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
       });
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       setBookRows((prevRows) => prevRows.filter((book) => book.id !== id));
-      alert('Book deleted successfully.');
+      // alert('Book deleted successfully.');
+      setSnackbar({ open: true, message: 'Book deleted successfully.', severity: 'success' });
     } catch (error) {
       console.error('Error deleting book:', error);
+      setSnackbar({ open: true, message: 'failed to delete book', severity: 'error' });
+
     }
   };
 
@@ -191,60 +244,67 @@ const Book = () => {
     // API call logic for updating book
     // Validations and payload formation
     console.log('Updated Book before API call:', updatedBook);
-    
+
     // Check for validation
-    if (!updatedBook.title ||  !updatedBook.isbn || updatedBook.price <= 0 || updatedBook.quantity <= 0) {
-      alert("Please fill in all required fields and ensure price and quantity are valid.");
+    if (!updatedBook.title || !updatedBook.isbn) {
+      alert("Please fill in all required fields and ensure title and isbn no.");
       return;
     }
-  
+
     // Create the payload to match the API requirements
     const payload = {
       bookName: updatedBook.title,
       description: updatedBook.desc,
-      employeeId: 2, // or any appropriate employeeId
-      authorName: updatedBook.author ,
+      employeeId: employeeId,
+      authorName: updatedBook.author,
       categoryName: updatedBook.genre,
       isbnNo: updatedBook.isbn,
       price: updatedBook.price,
       quantity: updatedBook.quantity,
       rating: updatedBook.rating,
     };
-  
+
     try {
       const response = await fetch(`http://localhost:8085/api/v1/book/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(payload), // Send the transformed payload
       });
-  
+
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-  
+
       await fetchBooks();
-      alert('Book updated successfully.');
+      // alert('Book updated successfully.');
+      setSnackbar({ open: true, message: 'Book updated successfully.', severity: 'success' });
+
     } catch (error) {
       console.error('Error updating book:', error);
       const errorResponse = await response.text(); // Log the error response for debugging
       console.error('Error Response:', errorResponse);
+      setSnackbar({ open: true, message: 'failed to update book', severity: 'error' });
+
     } finally {
       setOpenUpdateModal(false);
-      
+
     }
   };
-  
 
-  
+
+
 
   const addBook = async () => {
+
     try {
       const response = await fetch('http://localhost:8085/api/v1/book', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(newBook),
       });
@@ -252,9 +312,13 @@ const Book = () => {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       await fetchBooks();
-      alert('Book added successfully.');
+      // alert('Book added successfully.');
+      setSnackbar({ open: true, message: 'Book added successfully.', severity: 'success' });
+
     } catch (error) {
       console.error('Error adding book:', error);
+      setSnackbar({ open: true, message: 'failed to add book', severity: 'error' });
+
     } finally {
       setOpenAddModal(false);
       setNewBook({
@@ -277,16 +341,21 @@ const Book = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(newCategory),
       });
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      alert('Category added successfully.');
+      // alert('Category added successfully.');
+      setSnackbar({ open: true, message: 'category added successfully.', severity: 'success' });
+
       fetchCategories(); // Refresh the category list
     } catch (error) {
       console.error('Error adding category:', error);
+      setSnackbar({ open: true, message: 'failed to add category', severity: 'error' });
+
     } finally {
       setOpenAddCategoryModal(false);
       setNewCategory({
@@ -302,16 +371,21 @@ const Book = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(newAuthor),
       });
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      alert('Author added successfully.');
+      // alert('Author added successfully.');
+      setSnackbar({ open: true, message: 'author added successfully.', severity: 'success' });
+
       fetchAuthors(); // Refresh the category list
     } catch (error) {
       console.error('Error adding Author:', error);
+      setSnackbar({ open: true, message: 'failed to add author', severity: 'error' });
+
     } finally {
       setOpenAddAuthorModal(false);
       setNewAuthor({
@@ -349,10 +423,22 @@ const Book = () => {
   const handleCloseAddCategoryModal = () => setOpenAddCategoryModal(false);
   const handleOpenAddAuthorModal = () => setOpenAddAuthorModal(true);
   const handleCloseAddAuthorModal = () => setOpenAddAuthorModal(false);
-
+  const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
   const bookColumns = [
-    { field: 'title', headerName: 'Title', flex: 1 },
-    { field: 'author', headerName: 'Author', flex: 1 },
+    { field: 'title', headerName: 'Title', flex: 1 , headerClassName: 'custom-header', 
+      renderCell: (params) => (
+        <div style={{ fontSize: '16px', fontFamily: 'Arial, sans-serif', color: 'black' }}>
+          {params.value}
+        </div>
+      ), },
+    { field: 'author', headerName: 'Author', flex: 1, headerClassName: 'custom-header', 
+      renderCell: (params) => (
+        <div style={{ fontSize: '16px', fontFamily: 'Arial, sans-serif', color: 'black' }}>
+          {params.value}
+        </div>
+      ), },
     {
       field: 'desc',
       headerName: 'Description',
@@ -379,11 +465,36 @@ const Book = () => {
         );
       },
     },
-    { field: 'genre', headerName: 'Genre', flex: 1 },
-    { field: 'isbn', headerName: 'ISBN', flex: 1 },
-    { field: 'price', headerName: 'Price', flex: 1 },
-    { field: 'quantity', headerName: 'Quantity', flex: 1 },
-    { field: 'rating', headerName: 'Rating', flex: 1 },
+    { field: 'genre', headerName: 'Genre', flex: 1, headerClassName: 'custom-header', 
+      renderCell: (params) => (
+        <div style={{ fontSize: '16px', fontFamily: 'Arial, sans-serif', color: 'black' }}>
+          {params.value}
+        </div>
+      ), },
+    { field: 'isbn', headerName: 'ISBN', flex: 1 , headerClassName: 'custom-header', 
+      renderCell: (params) => (
+        <div style={{ fontSize: '16px', fontFamily: 'Arial, sans-serif', color: 'black' }}>
+          {params.value}
+        </div>
+      ),},
+    { field: 'price', headerName: 'Price', flex: 1 , headerClassName: 'custom-header', 
+      renderCell: (params) => (
+        <div style={{ fontSize: '16px', fontFamily: 'Arial, sans-serif', color: 'black' }}>
+          {params.value}
+        </div>
+      ),},
+    { field: 'quantity', headerName: 'Quantity', flex: 1, headerClassName: 'custom-header', 
+      renderCell: (params) => (
+        <div style={{ fontSize: '16px', fontFamily: 'Arial, sans-serif', color: 'black' }}>
+          {params.value}
+        </div>
+      ), },
+    { field: 'rating', headerName: 'Rating', flex: 1 , headerClassName: 'custom-header', 
+      renderCell: (params) => (
+        <div style={{ fontSize: '16px', fontFamily: 'Arial, sans-serif', color: 'black' }}>
+          {params.value}
+        </div>
+      ),},
     {
       field: 'actions',
       headerName: 'Actions',
@@ -453,10 +564,41 @@ const Book = () => {
               loading={loading}
               checkboxSelection
               disableSelectionOnClick
+              sx={{
+                // Optionally, you can also style the DataGrid itself here
+                '& .MuiDataGrid-columnHeaders': {
+                  fontSize: '18px', // Font size for column headers
+                  fontFamily: 'Arial, sans-serif', // Font family for column headers
+                  color: 'black', // Color for column headers
+                },
+              }}
             />
           </div>
         </Box>
       </CardContent>
+
+ {/* Description Modal */}
+      <Modal
+        open={openDescModal}
+        // onClose={handleCloseDescModal}
+        // aria-labelledby="description-modal-title"
+        // aria-describedby="description-modal-description"
+      >
+        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 400, bgcolor: 'background.paper', boxShadow: 24, p: 4 , borderRadius: 2}}>
+          <Typography id="description-modal-title" variant="h6" component="h2">
+            Full Description
+          </Typography>
+          <Typography variant="body1" sx={{ mt: 2 }}>
+            {selectedDescription}
+          </Typography>
+          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+            <Button onClick={handleCloseDescModal} variant="outlined" color="secondary">
+              Close
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
 
       {/* Modal for updating */}
       <Modal open={openUpdateModal} onClose={handleCloseUpdateModal}>
@@ -506,10 +648,10 @@ const Book = () => {
             </Select>
             <Tooltip title="Add new category">
               {/* <IconButton onClick={handleOpenAddCategoryModal} sx={{ ml: 2 }}> */}
-                {/* <AddCircleIcon color="primary" /> */}
-                <div onClick={handleOpenAddCategoryModal} style={{ cursor: 'pointer' }}>
-                  <a style={{fontSize:'15px', textDecoration:'none'}}>add new category</a>
-                </div>
+              {/* <AddCircleIcon color="primary" /> */}
+              <div onClick={handleOpenAddCategoryModal} style={{ cursor: 'pointer' }}>
+                <a style={{ fontSize: '15px', textDecoration: 'none' }}>add new category</a>
+              </div>
               {/* </IconButton> */}
             </Tooltip>
           </FormControl>
@@ -537,9 +679,9 @@ const Book = () => {
               ))}
             </Select>
             <Tooltip title="Add new category">
-            <div onClick={handleOpenAddAuthorModal} style={{ cursor: 'pointer' }}>
-                  <a style={{fontSize:'15px', textDecoration:'none'}}>add new Author</a>
-                </div>
+              <div onClick={handleOpenAddAuthorModal} style={{ cursor: 'pointer' }}>
+                <a style={{ fontSize: '15px', textDecoration: 'none' }}>add new Author</a>
+              </div>
             </Tooltip>
           </FormControl>
 
@@ -656,9 +798,9 @@ const Book = () => {
               ))}
             </Select>
             <Tooltip title="Add new category">
-            <div onClick={handleOpenAddCategoryModal} style={{ cursor: 'pointer' }}>
-                  <a style={{fontSize:'15px', textDecoration:'none'}}>add new category</a>
-                </div>
+              <div onClick={handleOpenAddCategoryModal} style={{ cursor: 'pointer' }}>
+                <a style={{ fontSize: '15px', textDecoration: 'none' }}>add new category</a>
+              </div>
             </Tooltip>
           </FormControl>
 
@@ -685,9 +827,9 @@ const Book = () => {
               ))}
             </Select>
             <Tooltip title="Add new category">
-            <div onClick={handleOpenAddAuthorModal} style={{ cursor: 'pointer' }}>
-                  <a style={{fontSize:'15px', textDecoration:'none'}}>add new Author</a>
-                </div>
+              <div onClick={handleOpenAddAuthorModal} style={{ cursor: 'pointer' }}>
+                <a style={{ fontSize: '15px', textDecoration: 'none' }}>add new Author</a>
+              </div>
             </Tooltip>
           </FormControl>
 
@@ -703,9 +845,24 @@ const Book = () => {
           <FormControl fullWidth sx={{ mt: 2 }}>
             <InputLabel>Rating</InputLabel>
             <Select
-              value={newBook.rating || 1}
+              value={newBook.rating || ''}
               onChange={(e) =>
                 setNewBook({ ...newBook, rating: e.target.value })
+              }
+            >
+              {['', 1, 2, 3, 4, 5].map((rating) => (
+                <MenuItem key={rating} value={rating}>
+                  {rating}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {/* <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Rating</InputLabel>
+            <Select
+              value={selectedBook.rating || 1}
+              onChange={(e) =>
+                setSelectedBook({ ...selectedBook, rating: e.target.value })
               }
             >
               {[1, 2, 3, 4, 5].map((rating) => (
@@ -714,7 +871,7 @@ const Book = () => {
                 </MenuItem>
               ))}
             </Select>
-          </FormControl>
+          </FormControl> */}
 
           <TextField
             label="Price"
@@ -828,6 +985,16 @@ const Book = () => {
           </Box>
         </Box>
       </Modal>
+      {/* Snackbar for Notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Card>
   );
 };

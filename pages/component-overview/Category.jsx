@@ -38,12 +38,35 @@ const Category1 = () => {
   
 
   const navigate = useNavigate();
-
-  // Check for the token and redirect to login if not present
-  useEffect(() => {
+  const verifyToken = () => {
     const token = localStorage.getItem("token");
     if (!token) {
-      navigate("/login");
+      return false;
+    }
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+      return payload.exp > currentTime; // Check if the token is still valid
+    } catch (error) {
+      console.error("Error verifying token:", error);
+      return false;
+    }
+  };
+
+  // Check for the token and redirect to login if not present
+  // useEffect(() => {
+  //   const token = localStorage.getItem("token");
+  //   if (!token ) {
+  //     navigate("/login");
+  //   }
+  // }, [navigate]);
+
+  useEffect(() => {
+    if (!verifyToken()) {
+      setSnackbar({ open: true, message: 'Session Expire!', severity: 'error' });
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000); 
     }
   }, [navigate]);
 
@@ -57,8 +80,8 @@ const Category1 = () => {
     }
   };
 
+  const token = localStorage.getItem("token");
   const getEmployeeIdFromToken = () => {
-    const token = localStorage.getItem("token");
     if (!token) {
       console.error("Token not found in localStorage");
       return null;
@@ -74,7 +97,7 @@ const Category1 = () => {
   };
 
   const employeeId = getEmployeeIdFromToken();
-  console.log(employeeId +"sheikh");
+  // console.log(employeeId +"sheikh");
 
   const handleOpen = (row) => {
     setCurrentRow(row);
@@ -109,8 +132,11 @@ const Category1 = () => {
     try {
       const response = await fetch(`http://localhost:8085/api/v1/category/${id}`, {
         method: 'DELETE',
+        headers:{
+          Authorization: `Bearer ${token}`
+        },
       });
-  
+  // console.log("object")
       if (!response.ok) {
         const errorData = await response.text(); // Parse text response
   
@@ -124,7 +150,7 @@ const Category1 = () => {
   
         return;
       }
-  
+      500
       setRows(rows.filter((row) => row.id !== id));
       setSnackbar({
         open: true,
@@ -159,6 +185,8 @@ const Category1 = () => {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            
           },
           body: JSON.stringify(updatedData),
         });
@@ -202,6 +230,7 @@ const Category1 = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(newCategory),
       });
@@ -236,7 +265,13 @@ const Category1 = () => {
 
   // Define columns for the DataGrid
   const columns = [
-    { field: 'categoryName', headerName: 'Category Name', flex: 1 },
+    { field: 'categoryName', headerName: 'Category Name', flex: 1 , headerClassName: 'custom-header', 
+      renderCell: (params) => (
+        <div style={{ fontSize: '16px', fontFamily: 'Arial, sans-serif', color: 'black' }}>
+          {params.value}
+        </div>
+      ),},
+      
     {
       field: 'description',
       headerName: 'Description',
@@ -250,17 +285,31 @@ const Category1 = () => {
             sx={{
               textTransform: 'none',
               textAlign: 'left',
-              color: 'black',
+              fontSize: '16px', // Font size for content
+              color: 'black', // Color for content
+              fontFamily: 'Arial, sans-serif', // Font family for content
               '&:hover': {
                 backgroundColor: 'transparent',
               },
             }}
           >
-            {desc.length > 20 ? `${desc.substring(0, 20)}...` : desc}
+            {desc.length > 20 ? `${desc.substring(0, 90)}...` : desc}
           </Button>
         );
       },
     },
+    // { field: 'createdAt', headerName: 'Created At', flex: 1,headerClassName: 'custom-header', // Apply custom class for the header
+    //   renderCell: (params) => (
+    //     <div style={{ fontSize: '16px', fontFamily: 'Arial, sans-serif', color: 'black' }}>
+    //       {params.value}
+    //     </div>
+    //   ), },
+    // { field: 'updatedAt', headerName: 'Updated At', flex: 1,headerClassName: 'custom-header', // Apply custom class for the header
+    //   renderCell: (params) => (
+    //     <div style={{ fontSize: '16px', fontFamily: 'Arial, sans-serif', color: 'black' }}>
+    //       {params.value}
+    //     </div>
+    //   ), },
     {
       field: 'actions',
       headerName: 'Actions',
@@ -290,32 +339,53 @@ const Category1 = () => {
   ];
   
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(`http://localhost:8085/api/v1/category/employee/${employeeId}`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+
+ 
+  
+    useEffect(() => {
+      const fetchData = async () => {
+        try {
+          const response = await fetch(`http://localhost:8085/api/v1/category/employee/${employeeId}`, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+  
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+  
+          // If the response has a new token in the Authorization header, store it in localStorage
+          const newToken = response.headers.get('Authorization');
+          console.log(newToken+"hiii")
+          if (newToken) {
+            
+            // Store the new token in localStorage (or sessionStorage, if preferred)
+            localStorage.setItem('token', newToken.replace('Bearer ', ''));
+          }
+          console.log(localStorage.getItem('token'))
+  
+          const data = await response.json();
+          const apiData = data.map((item) => ({
+            id: item.categoryId,
+            categoryId: item.categoryId,
+            categoryName: item.categoryName,
+            description: item.description,
+            employeeId: item.employeeId,
+          }));
+          setRows(apiData);
+        } catch (error) {
+          console.error('Error fetching data:', error);
+        } finally {
+          setLoading(false);
         }
-        const data = await response.json();
-        const apiData = data.map(item => ({
-          id: item.categoryId,
-          categoryId: item.categoryId,
-          categoryName: item.categoryName,
-          description: item.description,
-          employeeId: item.employeeId,
-        }));
-        setRows(apiData);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
+      };
+  
+      fetchData();
+    }, [employeeId, token]); // Ensure that the effect runs when employeeId or token changes
+  
+    
   return (
     <Card sx={{ borderRadius: 2, boxShadow: 3 }}>
       <CardContent sx={{ height: 830, mt: 2, overflowX: 'auto' }}>
@@ -367,6 +437,14 @@ const Category1 = () => {
             checkboxSelection
             disableSelectionOnClick
             loading={loading}
+            sx={{
+              // Optionally, you can also style the DataGrid itself here
+              '& .MuiDataGrid-columnHeaders': {
+                fontSize: '18px', // Font size for column headers
+                fontFamily: 'Arial, sans-serif', // Font family for column headers
+                color: 'black', // Color for column headers
+              },
+            }}
           />
           </div>
         </Box>

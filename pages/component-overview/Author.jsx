@@ -28,11 +28,26 @@ const modalStyle = {
 
 // Author columns definition
 const authorColumns = (handleDelete, openModal, handleOpenDescModal) => [
-  { field: 'authorName', headerName: 'Author Name', flex: 1 },
+  {
+    field: 'authorName',
+    headerName: 'Author Name',
+    flex: 1,
+    // Styling header with sx
+    // headerAlign: 'center',
+    headerClassName: 'custom-header', // Apply custom class for the header
+    renderCell: (params) => (
+      <div style={{ fontSize: '16px', fontFamily: 'Arial, sans-serif', color: 'black' }}>
+        {params.value}
+      </div>
+    ),
+  },
   {
     field: 'description',
     headerName: 'Description',
     flex: 2,
+    // Styling header with sx
+    // headerAlign: 'center',
+    headerClassName: 'custom-header', // Apply custom class for the header
     renderCell: (params) => {
       const desc = params.row.description || ''; // Default to an empty string if null
       return (
@@ -42,19 +57,31 @@ const authorColumns = (handleDelete, openModal, handleOpenDescModal) => [
           sx={{
             textTransform: 'none',
             textAlign: 'left',
-            color: 'black',
+            fontSize: '16px', // Font size for content
+            color: 'black', // Color for content
+            fontFamily: 'Arial, sans-serif', // Font family for content
             '&:hover': {
               backgroundColor: 'transparent',
             },
           }}
         >
-          {desc.length > 20 ? `${desc.substring(0, 20)}...` : desc}
+          {desc.length > 20 ? `${desc.substring(0, 90)}...` : desc}
         </Button>
       );
     },
   },
-  { field: 'createdAt', headerName: 'Created At', flex: 1 },
-  { field: 'updatedAt', headerName: 'Updated At', flex: 1 },
+  // { field: 'createdAt', headerName: 'Created At', flex: 1,headerClassName: 'custom-header', // Apply custom class for the header
+  //   renderCell: (params) => (
+  //     <div style={{ fontSize: '16px', fontFamily: 'Arial, sans-serif', color: 'black' }}>
+  //       {params.value}
+  //     </div>
+  //   ), },
+  // { field: 'updatedAt', headerName: 'Updated At', flex: 1,headerClassName: 'custom-header', // Apply custom class for the header
+  //   renderCell: (params) => (
+  //     <div style={{ fontSize: '16px', fontFamily: 'Arial, sans-serif', color: 'black' }}>
+  //       {params.value}
+  //     </div>
+  //   ), },
   {
     field: 'actions',
     headerName: 'Actions',
@@ -105,15 +132,45 @@ const Author = () => {
   // New state for the description modal
   const [descModalOpen, setDescModalOpen] = useState(false);
   const [selectedDescription, setSelectedDescription] = useState('');
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const navigate = useNavigate();
 
-  useEffect(() => {
+  const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
+
+  const verifyToken = () => {
     const token = localStorage.getItem("token");
     if (!token) {
-      navigate("/login");
+      return false;
+    }
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+      console.log(payload.exp)
+      console.log(currentTime)
+      return payload.exp > currentTime; // Check if the token is still valid
+    } catch (error) {
+      console.error("Error verifying token:", error);
+      return false;
+    }
+  };
+
+  // Check for the token and redirect to login if not present
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if ( !verifyToken()) {
+      
+      
+      setSnackbar({ open: true, message: 'Session Expire!', severity: 'error' });
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000); 
     }
   }, [navigate]);
+
 
   const decodeJWT = (token) => {
     try {
@@ -125,8 +182,8 @@ const Author = () => {
     }
   };
 
+  const token = localStorage.getItem("token");
   const getEmployeeIdFromToken = () => {
-    const token = localStorage.getItem("token");
     if (!token) {
       console.error("Token not found in localStorage");
       return null;
@@ -146,10 +203,24 @@ const Author = () => {
   useEffect(() => {
     const fetchAuthors = async () => {
       try {
-        const response = await fetch(`http://localhost:8085/api/v1/author/employee/${employeeId}`);
+        const response = await fetch(`http://localhost:8085/api/v1/author/employee/${employeeId}`,{
+          method: 'GET',
+          headers:{
+            Authorization: `Bearer ${token}`
+          },
+        });
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
+        const newToken = response.headers.get('Authorization');
+        if (newToken) {
+          
+          // Store the new token in localStorage (or sessionStorage, if preferred)
+          localStorage.setItem('token', newToken.replace('Bearer ', ''));
+        }
+        console.log(localStorage.getItem('token'))
+
+
         const data = await response.json();
         setAuthors(data);
       } catch (error) {
@@ -186,6 +257,9 @@ const Author = () => {
     try {
       const response = await fetch(`http://localhost:8085/api/v1/author/${authorId}`, {
         method: 'DELETE',
+        headers:{
+          Authorization: `Bearer ${token}`
+        },
       });
       if (!response.ok) {
         const contentType = response.headers.get('content-type');
@@ -200,9 +274,12 @@ const Author = () => {
         // Check for foreign key constraint error in the message
         if (errorMessage.includes('foreign key constraint fails')) {
           errorMessage = 'Author is in use and cannot be deleted.';
+          setSnackbar({ open: true, message: 'Author is in use and cannot be deleted.', severity: 'error' });
         }
   
         throw new Error(errorMessage);
+      }else{
+        setSnackbar({ open: true, message: 'Author deleted.', severity: 'success' });
       }
   
       // Update the authors list to remove the deleted author
@@ -244,7 +321,9 @@ const Author = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
+       
         body: JSON.stringify(updatedAuthor),
       });
 
@@ -261,7 +340,7 @@ const Author = () => {
       }
 
       const updatedData = await response.json();
-
+      setSnackbar({ open: true, message: 'Author updated successfully.', severity: 'success' });
       setAuthors((prevAuthors) =>
         prevAuthors.map((author) =>
           author.authorId === updatedData.authorId ? updatedData : author
@@ -271,6 +350,7 @@ const Author = () => {
       closeModal();
     } catch (error) {
       setErrorMessage(error.message);
+      setSnackbar({ open: true, message: 'failed update Author.', severity: 'error' });
       setShowError(true);
     }
   };
@@ -287,6 +367,7 @@ const Author = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(newAuthor),
       });
@@ -304,6 +385,7 @@ const Author = () => {
       }
 
       const createdAuthor = await response.json();
+      setSnackbar({ open: true, message: 'Author added sucessfully.', severity: 'success' })
 
       setAuthors((prevAuthors) => [...prevAuthors, createdAuthor]);
       setCreateOpen(false);
@@ -311,7 +393,9 @@ const Author = () => {
       setNewDescription('');
     } catch (error) {
       setErrorMessage(error.message);
+      setSnackbar({ open: true, message: 'failed to add author.', severity: 'error' });
       setShowError(true);
+      
     }
   };
 
@@ -368,6 +452,14 @@ const Author = () => {
                 checkboxSelection
                 disableSelectionOnClick
                 getRowId={(row) => row.authorId}
+                sx={{
+                  // Optionally, you can also style the DataGrid itself here
+                  '& .MuiDataGrid-columnHeaders': {
+                    fontSize: '18px', // Font size for column headers
+                    fontFamily: 'Arial, sans-serif', // Font family for column headers
+                    color: 'black', // Color for column headers
+                  },
+                }}
               />
             )}
             </div>
@@ -454,14 +546,14 @@ const Author = () => {
       </Modal>
 
       <Snackbar
-        open={showError}
-        autoHideDuration={6000}
-        onClose={() => setShowError(false)}
-      >
-        <Alert severity="error" onClose={() => setShowError(false)}>
-          {errorMessage}
-        </Alert>
-      </Snackbar>
+              open={snackbar.open}
+              autoHideDuration={6000}
+              onClose={handleSnackbarClose}
+            >
+              <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
+                {snackbar.message}
+              </Alert>
+            </Snackbar>
     </>
   );
 };
